@@ -85,6 +85,10 @@ if (!$user) {
     $new->firstname   = 'Academy';
     $new->lastname    = 'Service';
     $new->email       = 'academy-service@broncano.invalid';
+    // Sin país (y sin lang/timezone) Moodle marca la cuenta como "no configurada"
+    // y rechaza sus llamadas a la API con `usernotfullysetup`.
+    $new->country     = 'EC';
+    $new->lang        = 'es';
     $new->password    = complex_random_string(32);
     $new->confirmed   = 1;
     $new->policyagreed = 1;
@@ -93,8 +97,40 @@ if (!$user) {
     $user = $DB->get_record('user', ['id' => $id]);
     say("   creada (id={$user->id})");
 } else {
+    // Reparar una cuenta anterior a la que le faltaba país/ciudad.
+    $patch = [];
+    if (empty($user->country)) $patch['country'] = 'EC';
+    if (empty($user->city)) $patch['city'] = 'Quito';
+    foreach ($patch as $f => $v) {
+        $DB->set_field('user', $f, $v, ['id' => $user->id]);
+    }
+    if ($patch) say('   completado: ' . implode(', ', array_keys($patch)));
     say("   ya existía (id={$user->id})");
 }
+
+// Los campos de perfil personalizados obligatorios (cedula_pdf, foto_carnet)
+// hacen que Moodle marque a CUALQUIER usuario sin ellos como "no configurado", y
+// entonces rechaza sus llamadas a la API con `usernotfullysetup`. La cuenta de
+// servicio no tiene cédula ni foto: se les da un valor inocuo. (Esto sólo afecta
+// a esta cuenta; los alumnos siguen con sus campos obligatorios como estaban.)
+foreach (['cedula_pdf', 'foto_carnet'] as $shortname) {
+    $field = $DB->get_record('user_info_field', ['shortname' => $shortname]);
+    if (!$field) {
+        continue;
+    }
+    $existing = $DB->get_record('user_info_data', ['userid' => $user->id, 'fieldid' => $field->id]);
+    if ($existing) {
+        if (empty($existing->data)) {
+            $existing->data = 'n/a';
+            $DB->update_record('user_info_data', $existing);
+        }
+    } else {
+        $DB->insert_record('user_info_data', (object) [
+            'userid' => $user->id, 'fieldid' => $field->id, 'data' => 'n/a', 'dataformat' => 0,
+        ]);
+    }
+}
+say('   perfil de servicio completado (evita usernotfullysetup en los Web Services)');
 
 // ── 3. Rol acotado ──────────────────────────────────────────────────────────
 say('3. Rol acotado');
@@ -117,6 +153,14 @@ foreach ($CAPS as $cap) {
 }
 role_assign($roleid, $user->id, $syscontext->id);
 say('   permisos asignados: ' . count($CAPS));
+
+// Tener la capacidad moodle/role:assign no basta: Moodle exige además declarar
+// QUÉ roles puede otorgar este rol (tabla role_allow_assign). Sin esto,
+// enrol_manual_enrol_users falla con `wsusercannotassign` al intentar poner el
+// rol de estudiante. Se permite que broncanows asigne el rol student.
+$studentroleid = (int) (getenv('MOODLE_STUDENT_ROLE_ID') ?: 5);
+core_role_set_assign_allowed($roleid, $studentroleid);
+say("   broncanows habilitado para asignar el rol student ({$studentroleid})");
 
 // ── 4. Servicio externo ─────────────────────────────────────────────────────
 say('4. Servicio externo');
