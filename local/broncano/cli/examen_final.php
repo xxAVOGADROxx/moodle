@@ -102,7 +102,12 @@ foreach ($ctxexamen->get_parent_context_ids(true) as $ctxid) {
     $alcanzables[$ctxid] = true;
 }
 
-$categorias = [];                           // nombre => registro + nº de preguntas + ¿alcanzable?
+// OJO: puede haber VARIAS categorías con el mismo nombre en contextos distintos —
+// las hubo: dos «Modulo_B», una en el curso y otra dentro del cuestionario B.
+// Indexar por nombre haría que una tapase a la otra sin decir nada, así que se
+// guardan TODAS y luego se elige la alcanzable. Si hubiera dos alcanzables con el
+// mismo nombre, no se adivina: se para.
+$todas = [];                                // nombre => [registros]
 foreach ($DB->get_records('question_categories', null, '', 'id, name, contextid') as $c) {
     if (!in_array($c->name, MODULOS, true)) {
         continue;
@@ -111,12 +116,25 @@ foreach ($DB->get_records('question_categories', null, '', 'id, name, contextid'
         "SELECT COUNT(1)
            FROM {question_bank_entries} qbe
            JOIN {question_versions} qv ON qv.questionbankentryid = qbe.id
-          WHERE qbe.questioncategoryid = ? AND qv.status <> 'draft'",
+          WHERE qbe.questioncategoryid = ? AND qv.status = 'ready'",
         [$c->id]
     );
     $c->alcanzable = isset($alcanzables[$c->contextid]);
     $c->contexto = context::instance_by_id($c->contextid, IGNORE_MISSING);
-    $categorias[$c->name] = $c;
+    $todas[$c->name][] = $c;
+}
+
+$categorias = [];                           // nombre => LA categoría que sirve
+foreach ($todas as $nombre => $lista) {
+    $buenas = array_values(array_filter($lista, fn($c) => $c->alcanzable));
+    if (count($buenas) > 1) {
+        $ids = implode(', ', array_map(fn($c) => $c->id, $buenas));
+        morir("Hay {$ids} — dos categorías «{$nombre}» que el examen puede ver.\n"
+            . '   No adivino de cuál sacar las preguntas. Pasa antes banco_sanear.php.');
+    }
+    // Si ninguna es alcanzable se guarda igualmente una, para poder EXPLICAR en
+    // `estado` dónde está y por qué no sirve, en vez de decir «no existe».
+    $categorias[$nombre] = $buenas[0] ?? $lista[0];
 }
 
 // ── estado ──────────────────────────────────────────────────────────────────
