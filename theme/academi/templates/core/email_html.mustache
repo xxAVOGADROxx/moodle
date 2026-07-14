@@ -17,15 +17,18 @@
 {{!
     @template core/email_html
 
-    Sobrescribe la plantilla del núcleo (que es sólo {{{body}}}) para añadir la
-    firma de Broncano al pie de TODOS los correos HTML que envía Moodle:
-    bienvenida de cuenta nueva, restablecimiento de contraseña, avisos de curso…
+    Sobrescribe la plantilla del nucleo, que solo emite el cuerpo, para anadir la
+    firma de Broncano al pie de TODOS los correos HTML que envia Moodle:
+    bienvenida de cuenta nueva, restablecimiento de contrasena, avisos de curso.
 
-    Éste es el mecanismo que Moodle soporta para esto. Moodle no tiene ajuste de
-    "firma de correo", y meter HTML dentro de las cadenas de idioma es frágil:
-    el correo de cuenta nueva se compone a partir de texto plano y Moodle lo
-    convierte a HTML él mismo. La plantilla, en cambio, envuelve el cuerpo ya
-    montado, así que la firma sale intacta.
+    Este es el mecanismo que Moodle soporta. No hay ajuste de "firma de correo", y
+    meter HTML en las cadenas de idioma es fragil: el correo de cuenta nueva se
+    compone a partir de texto plano y Moodle lo convierte a HTML el mismo. La
+    plantilla, en cambio, envuelve el cuerpo ya montado.
+
+    OJO: no escribas una etiqueta mustache dentro de este comentario. El
+    comentario termina en el PRIMER "}}", asi que una etiqueta de triple llave lo
+    cierra antes de tiempo y el resto del texto acaba dentro del correo. Ya paso.
 
     Context variables required for this template:
     * body
