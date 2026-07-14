@@ -54,24 +54,25 @@ if (!file_exists($imagen_curso)) {
 
 // ── 2. Slider de la portada ─────────────────────────────────────────────────
 // Los tres slides venían con el lorem ipsum por defecto del tema.
+// Ilustraciones de los tres tipos de aeronave (Módulo A), en PNG transparente.
 $slides = [
     1 => [
         'title' => 'Piloto a Distancia de UAS',
         'desc'  => '<p>Programa completo de instrucción conforme a la RDAC 101: '
                  . '40 horas entre teoría, simulador y vuelo real.</p>',
-        'image' => '/tmp/matrice_4e_dron_compress.jpg',
+        'image' => '/tmp/ala_rotatoria_opt.png',
     ],
     2 => [
         'title' => 'Entrena antes de volar',
         'desc'  => '<p>Practica maniobras, emergencias y procedimientos en nuestro simulador. '
                  . 'Tus horas de entrenamiento quedan registradas automáticamente.</p>',
-        'image' => '/tmp/gafas_fpv_compress.jpg',
+        'image' => '/tmp/vtol_opt.png',
     ],
     3 => [
         'title' => 'Certificación con trazabilidad',
         'desc'  => '<p>Al superar el programa recibes tu certificado con firma electrónica '
                  . 'y un código único de verificación.</p>',
-        'image' => '/tmp/mini_4pro_dron_compress.jpg',
+        'image' => '/tmp/ala_fija_opt.png',
     ],
 ];
 
@@ -85,7 +86,9 @@ foreach ($slides as $i => $s) {
 
     if (file_exists($s['image'])) {
         $filearea = "slide{$i}image";
-        $filename = "slide{$i}.jpg";
+        // Respetar la extensión real: los banners son PNG transparentes.
+        $ext = strtolower(pathinfo($s['image'], PATHINFO_EXTENSION)) ?: 'jpg';
+        $filename = "slide{$i}.{$ext}";
         $fs->delete_area_files($syscontext->id, 'theme_academi', $filearea, 0);
         $fs->create_file_from_pathname([
             'contextid' => $syscontext->id,
