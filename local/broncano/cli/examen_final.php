@@ -298,8 +298,14 @@ $settings->get_grade_calculator()->update_quiz_maximum_grade(TOTAL);
 $final = $DB->get_record('quiz', ['id' => $examen->id], 'grade, sumgrades');
 rebuild_course_cache($curso, true);
 
+// Se cuenta contra la BASE DE DATOS, no contra $estructura: ese objeto se creó
+// antes de añadir nada y su contador sigue en el valor de entonces. Un resumen
+// que lee su propia caché no verifica nada — decía «0 preguntas» con las 30 ya
+// escritas.
+$slots = $DB->count_records('quiz_slots', ['quizid' => $examen->id]);
+
 say('');
 say('✅ Examen final armado.');
-say("   {$estructura->get_question_count()} preguntas   ·   suma {$final->sumgrades}   ·   nota máxima {$final->grade}");
+say("   {$slots} preguntas   ·   suma {$final->sumgrades}   ·   nota máxima {$final->grade}");
 say('   En cada intento, Moodle saca 3 preguntas distintas de cada módulo.');
 exit(0);
