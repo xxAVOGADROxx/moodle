@@ -76,7 +76,10 @@ $slides = [
 ];
 
 foreach ($slides as $i => $s) {
-    set_config("slide{$i}title", $s['title'], 'theme_academi');
+    // OJO: el ajuste se llama `slideXcaption`, no `slideXtitle`. Con el nombre
+    // equivocado el tema lo ignora y sigue pintando su texto por defecto
+    // ("Carrusel basado en Bootstrap - 02"), que es lo que se veía.
+    set_config("slide{$i}caption", $s['title'], 'theme_academi');
     set_config("slide{$i}desc", $s['desc'], 'theme_academi');
     set_config("slide{$i}status", 1, 'theme_academi');
 
