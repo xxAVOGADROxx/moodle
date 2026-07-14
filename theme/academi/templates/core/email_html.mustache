@@ -52,7 +52,10 @@
           {{! Banda oscura con el logotipo. }}
           <tr>
             <td align="left" style="background-color:#141414; padding:22px 28px; border-radius:8px 8px 0 0;">
-              <img src="https://broncano.io/brand/broncano-wordmark.png" alt="Broncano" width="160" style="display:block; width:160px; max-width:160px; height:auto; border:0; outline:none; text-decoration:none;">
+              {{! El color y el tamano son para el ALT: si el cliente bloquea las
+                  imagenes remotas -Gmail lo hace con remitentes nuevos- la banda
+                  no se queda en negro, se lee "Broncano" en blanco. }}
+              <img src="https://broncano.io/brand/broncano-wordmark.png" alt="Broncano" width="160" style="display:block; width:160px; max-width:160px; height:auto; border:0; outline:none; text-decoration:none; color:#ffffff; font-family:Arial, Helvetica, sans-serif; font-size:20px; font-weight:bold; letter-spacing:2px;">
             </td>
           </tr>
           <tr>
