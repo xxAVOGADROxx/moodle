@@ -43,6 +43,11 @@ use core_question\local\bank\condition;
 use mod_quiz\quiz_settings;
 use mod_quiz\structure;
 
+// En CLI no hay nadie con la sesión iniciada, así que Moodle evalúa los permisos
+// contra un usuario vacío y deniega «Usar todas las preguntas» al añadir preguntas
+// aleatorias. Hay que decirle quiénes somos ANTES de tocar nada.
+\core\session\manager::set_user(get_admin());
+
 // Los diez módulos teóricos, en el orden del sílabo (MIP Cap. 5). El nombre es el
 // de la categoría del banco, tal y como la crean los ficheros GIFT.
 const MODULOS = [

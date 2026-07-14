@@ -50,6 +50,11 @@ use core_question\local\bank\condition;
 use mod_quiz\quiz_settings;
 use mod_quiz\structure;
 
+// En CLI no hay nadie con la sesión iniciada, así que Moodle evalúa los permisos
+// contra un usuario vacío y deniega «Usar todas las preguntas» al añadir preguntas
+// aleatorias. Hay que decirle quiénes somos ANTES de tocar nada.
+\core\session\manager::set_user(get_admin());
+
 // Módulo → categoría del banco que le corresponde. Es la tabla de la verdad:
 // contra esto se compara lo que cada examen está preguntando de verdad.
 const BANCO = [
