@@ -26,9 +26,11 @@
     compone a partir de texto plano y Moodle lo convierte a HTML el mismo. La
     plantilla, en cambio, envuelve el cuerpo ya montado.
 
-    OJO: no escribas una etiqueta mustache dentro de este comentario. El
-    comentario termina en el PRIMER "}}", asi que una etiqueta de triple llave lo
-    cierra antes de tiempo y el resto del texto acaba dentro del correo. Ya paso.
+    OJO: no escribas NINGUNA llave de cierre mustache dentro de este comentario.
+    Un comentario mustache termina en el primer cierre que encuentra, asi que
+    cualquier etiqueta -o incluso mencionarla entre comillas- lo corta antes de
+    tiempo y el resto del texto acaba dentro del correo del alumno. Ya paso dos
+    veces: la segunda fue este mismo aviso.
 
     Context variables required for this template:
     * body
