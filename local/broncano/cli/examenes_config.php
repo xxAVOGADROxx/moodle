@@ -53,6 +53,12 @@ require_once($CFG->libdir . '/grade/grade_item.php');
 // nota sólo estaba marcada en la ventana de después.
 const AL_INSTANTE = 0x01000;   // QUIZ_REVIEW_IMMEDIATELY_AFTER
 const MAS_TARDE   = 0x00100;   // QUIZ_REVIEW_LATER_WHILE_OPEN
+const AL_CERRAR   = 0x00010;   // QUIZ_REVIEW_AFTER_CLOSE
+
+// Que el alumno pueda revisar SIEMPRE tras entregar: al momento, más tarde, y con
+// el examen ya cerrado. Sin la primera —el caso del módulo A— la revisión no
+// aparece en los dos minutos siguientes a terminar, que es justo cuando se mira.
+const SIEMPRE = AL_INSTANTE | MAS_TARDE | AL_CERRAR;
 
 const APROBADO_PCT = 0.75;     // RDAC 101 · MIP Cap. 6
 
@@ -68,12 +74,49 @@ function es_final(string $nombre): bool {
     return (bool) preg_match('/final|suficiencia/i', core_text::specialtoascii($nombre));
 }
 
-/** Lo que debe tener este examen. */
+/**
+ * Lo que debe tener este examen: tiempo, intentos y QUÉ puede revisar el alumno.
+ *
+ * La política de revisión la decidió el instructor:
+ *
+ *   Módulos A–J  El alumno ve su intento, qué acertó y su nota — pero NO la
+ *                respuesta correcta de lo que falló. Con dos intentos y preguntas
+ *                al azar, enseñar la correcta convertiría el segundo intento en
+ *                copiar del primero. La retroalimentación de la pregunta también se
+ *                oculta, porque lleva la referencia y delataría la respuesta.
+ *
+ *   Examen final Sólo la nota. Es la prueba de suficiencia, un intento. Enseñar
+ *                sus 30 preguntas desgastaría el banco de 360 examen a examen, así
+ *                que ni el intento ni las respuestas se muestran: aprobó o no.
+ */
 function patron(string $nombre): array {
-    return es_final($nombre)
-        // Un solo intento: es la prueba de suficiencia, presencial y supervisada.
-        ? ['timelimit' => 30 * 60, 'attempts' => 1, 'preguntas' => 30]
-        : ['timelimit' => 20 * 60, 'attempts' => 2, 'preguntas' => 12];
+    if (es_final($nombre)) {
+        return [
+            'timelimit' => 30 * 60,
+            'attempts' => 1,        // prueba de suficiencia, presencial y supervisada
+            // Sólo la nota: nada del intento ni de las respuestas.
+            'reviewattempt' => 0,
+            'reviewcorrectness' => 0,
+            'reviewmarks' => SIEMPRE,
+            'reviewspecificfeedback' => 0,
+            'reviewgeneralfeedback' => 0,
+            'reviewrightanswer' => 0,
+            'reviewoverallfeedback' => 0,
+        ];
+    }
+    return [
+        'timelimit' => 20 * 60,
+        'attempts' => 2,
+        // Su intento y qué acertó, sí. La respuesta correcta y la
+        // retroalimentación, no.
+        'reviewattempt' => SIEMPRE,
+        'reviewcorrectness' => SIEMPRE,
+        'reviewmarks' => SIEMPRE,
+        'reviewspecificfeedback' => 0,
+        'reviewgeneralfeedback' => 0,
+        'reviewrightanswer' => 0,
+        'reviewoverallfeedback' => 0,
+    ];
 }
 
 global $DB;
@@ -93,7 +136,7 @@ foreach ($cursos as $cid => $curso) {
     say("── Curso {$cid} · {$curso->shortname}");
     say(sprintf('   %-32s %-9s %-10s %-11s %s', 'EXAMEN', 'TIEMPO', 'INTENTOS', 'APRUEBA', 'NOTA AL ACABAR'));
 
-    foreach ($DB->get_records('quiz', ['course' => $cid], 'id', 'id, name, grade, timelimit, attempts, reviewmarks') as $q) {
+    foreach ($DB->get_records('quiz', ['course' => $cid], 'id', '*') as $q) {
         $p = patron($q->name);
         $gi = grade_item::fetch([
             'itemtype' => 'mod', 'itemmodule' => 'quiz',
@@ -106,20 +149,23 @@ foreach ($cursos as $cid => $curso) {
         $maxima = (float) $q->grade;
         $corte = round($maxima * APROBADO_PCT, 2);
 
-        $quiere = [
-            'timelimit' => (int) $p['timelimit'],
-            'attempts' => (int) $p['attempts'],
-            // Que la nota se vea nada más entregar, y siga viéndose después.
-            'reviewmarks' => ((int) $q->reviewmarks) | AL_INSTANTE | MAS_TARDE,
-        ];
+        // Todo lo del patrón salvo `preguntas`, que aquí no se toca (lo arma
+        // examen_final.php / banco_sanear.php). El resto son columnas de `quiz`.
+        $quiere = $p;
+        unset($quiere['preguntas']);
 
         $difQuiz = [];
         foreach ($quiere as $campo => $valor) {
-            if ((int) $q->$campo !== $valor) {
-                $difQuiz[$campo] = $valor;
+            if ((int) $q->$campo !== (int) $valor) {
+                $difQuiz[$campo] = (int) $valor;
             }
         }
         $difCorte = $gi && abs((float) $gi->gradepass - $corte) > 0.001;
+
+        // Resumen legible de qué revisa el alumno tras entregar.
+        $rev = ((int) $q->reviewattempt & AL_INSTANTE)
+            ? (((int) $q->reviewrightanswer & AL_INSTANTE) ? 'intento + correcta' : 'intento, sin correcta')
+            : (((int) $q->reviewmarks & AL_INSTANTE) ? 'sólo nota' : '⛔ nada al entregar');
 
         $estado = ($difQuiz || $difCorte) ? '→' : '✓';
         say(sprintf('   %s %-30s %-9s %-10s %-11s %s',
@@ -128,7 +174,7 @@ foreach ($cursos as $cid => $curso) {
             ($q->timelimit ? ($q->timelimit / 60) . ' min' : 'SIN LÍMITE'),
             ($q->attempts ? $q->attempts : 'ILIMITADOS'),
             ($gi && $gi->gradepass > 0 ? rtrim(rtrim(number_format((float) $gi->gradepass, 2, '.', ''), '0'), '.') . '/' . rtrim(rtrim(number_format($maxima, 2, '.', ''), '0'), '.') : 'SIN MÍNIMO'),
-            (((int) $q->reviewmarks & AL_INSTANTE) ? 'sí' : 'NO (a los 2 min)')
+            $rev
         ));
 
         if (!$difQuiz && !$difCorte) {
@@ -138,12 +184,12 @@ foreach ($cursos as $cid => $curso) {
         foreach ($difQuiz as $campo => $valor) {
             $antes = $campo === 'timelimit'
                 ? ($q->timelimit ? ($q->timelimit / 60) . ' min' : 'sin límite')
-                : ($campo === 'attempts' ? ($q->attempts ?: 'ilimitados') : $q->reviewmarks);
+                : ($campo === 'attempts' ? ($q->attempts ?: 'ilimitados') : (int) $q->$campo);
             $ahora = $campo === 'timelimit' ? ($valor / 60) . ' min' : $valor;
-            say(sprintf('        %-14s %s → %s', $campo, $antes, $ahora));
+            say(sprintf('        %-22s %s → %s', $campo, $antes, $ahora));
         }
         if ($difCorte) {
-            say(sprintf('        %-14s %s → %s  (75 %% de %s)', 'nota mínima',
+            say(sprintf('        %-22s %s → %s  (75 %% de %s)', 'nota mínima',
                 ($gi && $gi->gradepass > 0 ? $gi->gradepass : 'ninguna'), $corte, $maxima));
         }
 
