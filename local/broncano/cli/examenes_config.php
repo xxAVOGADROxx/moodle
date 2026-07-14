@@ -191,6 +191,13 @@ foreach ($cursos as $cid => $curso) {
         }
         $difCorte = $gi && abs((float) $gi->gradepass - $corte) > 0.001;
 
+        // El botón «Marcar como hecho» (finalización MANUAL de la actividad) no
+        // aporta nada aquí: la graduación no sale de que el alumno se marque el
+        // examen, sino de su nota y de las reglas de NocoDB. Sólo despista. Ningún
+        // examen debe tenerlo — y uno lo tenía suelto (el módulo A, cómo no).
+        $cm = get_coursemodule_from_instance('quiz', $q->id, $cid, false, MUST_EXIST);
+        $difFinaliz = (int) $cm->completion !== COMPLETION_TRACKING_NONE;
+
         // Resumen legible de qué revisa el alumno tras entregar (estado ACTUAL).
         $rev = ((int) $q->reviewattempt & AL_INSTANTE)
             ? (((int) $q->reviewrightanswer & AL_INSTANTE) ? 'intento + correcta' : 'intento, sin correcta')
@@ -206,7 +213,7 @@ foreach ($cursos as $cid => $curso) {
             $rev
         ));
 
-        if (!$difQuiz && !$difCorte) {
+        if (!$difQuiz && !$difCorte && !$difFinaliz) {
             continue;
         }
 
@@ -221,6 +228,9 @@ foreach ($cursos as $cid => $curso) {
             say(sprintf('        %-22s %s → %s  (75 %% de %s)', 'nota mínima',
                 ($gi && $gi->gradepass > 0 ? $gi->gradepass : 'ninguna'), $corte, $maxima));
         }
+        if ($difFinaliz) {
+            say('        finalización         botón «Marcar como hecho» → fuera');
+        }
 
         $cambios++;
         if ($dry) {
@@ -229,6 +239,14 @@ foreach ($cursos as $cid => $curso) {
 
         foreach ($difQuiz as $campo => $valor) {
             $DB->set_field('quiz', $campo, $valor, ['id' => $q->id]);
+        }
+        if ($difFinaliz) {
+            // Quitar el seguimiento y borrar cualquier marca ya puesta, para que no
+            // quede un estado fantasma de «completado» de cuando existía el botón.
+            $DB->set_field('course_modules', 'completion', COMPLETION_TRACKING_NONE, ['id' => $cm->id]);
+            $DB->set_field('course_modules', 'completionview', 0, ['id' => $cm->id]);
+            $DB->set_field('course_modules', 'completionexpected', 0, ['id' => $cm->id]);
+            $DB->delete_records('course_modules_completion', ['coursemoduleid' => $cm->id]);
         }
         if ($difCorte) {
             $gi->gradepass = $corte;
