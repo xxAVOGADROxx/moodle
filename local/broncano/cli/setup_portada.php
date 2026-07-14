@@ -84,6 +84,10 @@ foreach ($slides as $i => $s) {
     set_config("slide{$i}desc", $s['desc'], 'theme_academi');
     set_config("slide{$i}status", 1, 'theme_academi');
 
+    // El botón venía con la URL de ejemplo del tema (http://www.example.com/).
+    set_config("slide{$i}btntext", 'Saber más', 'theme_academi');
+    set_config("slide{$i}btnurl", 'https://broncano.io/', 'theme_academi');
+
     if (file_exists($s['image'])) {
         $filearea = "slide{$i}image";
         // Respetar la extensión real: los banners son PNG transparentes.

@@ -1,0 +1,72 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template core/email_html
+
+    Sobrescribe la plantilla del núcleo (que es sólo {{{body}}}) para añadir la
+    firma de Broncano al pie de TODOS los correos HTML que envía Moodle:
+    bienvenida de cuenta nueva, restablecimiento de contraseña, avisos de curso…
+
+    Éste es el mecanismo que Moodle soporta para esto. Moodle no tiene ajuste de
+    "firma de correo", y meter HTML dentro de las cadenas de idioma es frágil:
+    el correo de cuenta nueva se compone a partir de texto plano y Moodle lo
+    convierte a HTML él mismo. La plantilla, en cambio, envuelve el cuerpo ya
+    montado, así que la firma sale intacta.
+
+    Context variables required for this template:
+    * body
+}}
+{{{body}}}
+
+<br>
+<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color:#333333; font-size:13px; line-height:1.45; margin-top:24px;">
+  <tbody><tr>
+    <td style="border-left:3px solid #8b0000; padding-right:16px;">&nbsp;</td>
+    <td style="vertical-align:middle;">
+
+      <div style="font-size:18px; font-weight:bold; color:#8b0000; padding-bottom:6px; letter-spacing:0.3px;">
+        Broncano Academia
+      </div>
+
+      <div style="padding-bottom:2px;">
+        <span style="color:#8b0000; font-weight:bold;">&#9993;</span>&nbsp;
+        <a href="mailto:broncanoacademia@gmail.com" style="color:#333333; text-decoration:none;">broncanoacademia@gmail.com</a>
+        &nbsp;&nbsp;<span style="color:#cccccc;">|</span>&nbsp;&nbsp;
+        <span style="color:#8b0000; font-weight:bold;">&#9742;</span>&nbsp;
+        <a href="tel:+593968125046" style="color:#333333; text-decoration:none;">+593 968 125 046</a>
+      </div>
+
+      <div style="padding-bottom:2px;">
+        <span style="color:#8b0000; font-weight:bold;">&#127760;</span>&nbsp;
+        <a href="https://broncano.io/" style="color:#8b0000; text-decoration:none; font-weight:bold;">broncano.io</a>
+      </div>
+
+      <div style="padding-bottom:6px;">
+        <span style="color:#8b0000; font-weight:bold;">&#128205;</span>&nbsp;
+        <a href="https://maps.google.com/?q=Sector+El+Bosque,+Alonso+de+torres+y+C.J.+Edificio+Vista-Sol,+Planta+Baja,+oficina+2" style="color:#333333; text-decoration:none;">Sector El Bosque, Alonso de Torres y C.J. &mdash; Edificio Vista-Sol, Planta Baja, of. 2</a>
+      </div>
+
+      <div style="font-size:12px; color:#555555; border-top:1px solid #eeeeee; padding-top:5px;">
+        <span style="color:#8b0000; font-weight:bold;">Horarios:</span>
+        Lun&ndash;Vie 9:00&nbsp;AM&ndash;5:00&nbsp;PM &nbsp;&middot;&nbsp;
+        S&aacute;b 8:00&nbsp;AM&ndash;1:00&nbsp;PM &nbsp;&middot;&nbsp;
+        Dom Cerrado
+      </div>
+
+    </td>
+  </tr>
+</tbody></table>
