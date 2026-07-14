@@ -195,7 +195,10 @@ foreach ($DB->get_records('question_categories', null, 'id') as $c) {
         }
         $cm = get_coursemodule_from_instance('quiz', $q->id, $curso);
         $cats = categorias_de_quiz(context_module::instance($cm->id)->id);
-        $debe = $canon[$letra]->id ?? 0;
+        // (int): la base de datos devuelve los ids como CADENA, y las claves de
+        // $cats son enteros. Sin el casting, `===` da falso siempre y el informe
+        // marcaba con ⚠️ exámenes que estaban perfectos.
+        $debe = (int) ($canon[$letra]->id ?? 0);
         $ok = count($cats) === 1 && array_key_first($cats) === $debe && reset($cats) === POR_EXAMEN;
         $desc = [];
         foreach ($cats as $cid => $n) {
