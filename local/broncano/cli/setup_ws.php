@@ -45,6 +45,12 @@ $FUNCTIONS = [
     'core_user_get_users_by_field',
     'enrol_manual_enrol_users',
     'core_course_get_courses_by_field',
+    // El GRUPO es la convocatoria: «Presencial 2026-07-20». De su nombre salen las
+    // fechas de examen de ese grupo (ver grupos.php), así que meter al alumno en
+    // el suyo es lo que hace que vea SUS fechas y no las de otra convocatoria.
+    'core_group_get_course_groups',
+    'core_group_create_groups',
+    'core_group_add_group_members',
 ];
 // Lo mínimo para crear un alumno y matricularlo. Nada más: si el academy-service
 // cayera en malas manos, con esto se pueden crear alumnos — molesto, pero acotado.
@@ -63,6 +69,7 @@ $CAPS = [
     'enrol/manual:enrol',         // matricularlo
     'moodle/role:assign',         // darle el rol de estudiante al matricular
     'moodle/course:view',         // resolver el curso
+    'moodle/course:managegroups', // meterlo en el grupo de su convocatoria
 ];
 
 // ── 1. Encender los Web Services ────────────────────────────────────────────
