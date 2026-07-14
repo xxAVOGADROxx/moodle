@@ -54,6 +54,12 @@ $CAPS = [
     'moodle/user:create',         // crear la cuenta del alumno
     'moodle/user:viewdetails',    // ¿ya existe?
     'moodle/user:viewalldetails',
+    // Sin esto, core_user_get_users_by_field con field=email devuelve VACÍO
+    // aunque el usuario exista: Moodle exige esta capacidad para buscar por
+    // campos de identidad. El servicio entonces intentaba crear un duplicado y
+    // Moodle lo rechazaba, así que un alumno con cuenta previa (el caso del
+    // segundo curso) no llegaba a matricularse nunca. Es de sólo lectura.
+    'moodle/site:viewuseridentity',
     'enrol/manual:enrol',         // matricularlo
     'moodle/role:assign',         // darle el rol de estudiante al matricular
     'moodle/course:view',         // resolver el curso
