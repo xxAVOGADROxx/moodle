@@ -17,14 +17,20 @@
 {{!
     @template core/email_html
 
-    Sobrescribe la plantilla del nucleo, que solo emite el cuerpo, para anadir la
-    firma de Broncano al pie de TODOS los correos HTML que envia Moodle:
-    bienvenida de cuenta nueva, restablecimiento de contrasena, avisos de curso.
+    Envoltorio de TODOS los correos HTML de Moodle: bienvenida de cuenta nueva,
+    restablecimiento de contrasena, avisos de curso. La plantilla del nucleo emite
+    el cuerpo a pelo; esta le pone cabecera de marca y firma.
 
-    Este es el mecanismo que Moodle soporta. No hay ajuste de "firma de correo", y
-    meter HTML en las cadenas de idioma es fragil: el correo de cuenta nueva se
-    compone a partir de texto plano y Moodle lo convierte a HTML el mismo. La
-    plantilla, en cambio, envuelve el cuerpo ya montado.
+    Ojo con el correo de cuenta nueva: Moodle lo compone en TEXTO y lo convierte a
+    HTML el mismo, asi que el cuerpo llega sin estilos. Por eso el diseno vive
+    aqui, en el envoltorio, y no en las cadenas de idioma.
+
+    Maquetado a la vieja usanza -tablas, anchos fijos, estilos en linea- porque es
+    lo unico que respetan Outlook y Gmail. Nada de flexbox ni de hojas de estilo.
+
+    El logotipo es casi blanco, de ahi la banda oscura: sobre fondo claro no se
+    veria. Se sirve por HTTPS desde broncano.io/brand/ (ver nginx.conf), que es
+    publico; un adjunto embebido daria mas guerra con los clientes de correo.
 
     OJO: no escribas NINGUNA llave de cierre mustache dentro de este comentario.
     Un comentario mustache termina en el primer cierre que encuentra, asi que
@@ -34,42 +40,80 @@
 
     Context variables required for this template:
     * body
+    * sitefullname
 }}
-{{{body}}}
-
-<br>
-<table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color:#333333; font-size:13px; line-height:1.45; margin-top:24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; background-color:#f4f4f5; margin:0; padding:24px 12px;">
   <tbody><tr>
-    <td style="border-left:3px solid #8b0000; padding-right:16px;">&nbsp;</td>
-    <td style="vertical-align:middle;">
+    <td align="center" style="padding:0;">
 
-      <div style="font-size:18px; font-weight:bold; color:#8b0000; padding-bottom:6px; letter-spacing:0.3px;">
-        Broncano Academia
-      </div>
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#ffffff; border:1px solid #e6e6e8; border-radius:8px;">
+        <tbody>
 
-      <div style="padding-bottom:2px;">
-        <span style="color:#8b0000; font-weight:bold;">&#9993;</span>&nbsp;
-        <a href="mailto:broncanoacademia@gmail.com" style="color:#333333; text-decoration:none;">broncanoacademia@gmail.com</a>
-        &nbsp;&nbsp;<span style="color:#cccccc;">|</span>&nbsp;&nbsp;
-        <span style="color:#8b0000; font-weight:bold;">&#9742;</span>&nbsp;
-        <a href="tel:+593968125046" style="color:#333333; text-decoration:none;">+593 968 125 046</a>
-      </div>
+          {{! Banda oscura con el logotipo. }}
+          <tr>
+            <td align="left" style="background-color:#141414; padding:22px 28px; border-radius:8px 8px 0 0;">
+              <img src="https://broncano.io/brand/broncano-wordmark.png" alt="Broncano" width="160" style="display:block; width:160px; max-width:160px; height:auto; border:0; outline:none; text-decoration:none;">
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#8b0000; height:3px; line-height:3px; font-size:0;">&nbsp;</td>
+          </tr>
 
-      <div style="padding-bottom:2px;">
-        <span style="color:#8b0000; font-weight:bold;">&#127760;</span>&nbsp;
-        <a href="https://broncano.io/" style="color:#8b0000; text-decoration:none; font-weight:bold;">broncano.io</a>
-      </div>
+          {{! Cuerpo del correo tal cual lo compone Moodle. }}
+          <tr>
+            <td style="padding:28px 28px 8px; font-family:Arial, Helvetica, sans-serif; color:#333333; font-size:14px; line-height:1.6;">
+              {{{body}}}
+            </td>
+          </tr>
 
-      <div style="padding-bottom:6px;">
-        <span style="color:#8b0000; font-weight:bold;">&#128205;</span>&nbsp;
-        <a href="https://maps.google.com/?q=Sector+El+Bosque,+Alonso+de+torres+y+C.J.+Edificio+Vista-Sol,+Planta+Baja,+oficina+2" style="color:#333333; text-decoration:none;">Sector El Bosque, Alonso de Torres y C.J. &mdash; Edificio Vista-Sol, Planta Baja, of. 2</a>
-      </div>
+          {{! Firma. }}
+          <tr>
+            <td style="padding:8px 28px 28px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, Helvetica, sans-serif; color:#333333; font-size:13px; line-height:1.45; margin-top:16px;">
+                <tbody><tr>
+                  <td style="border-left:3px solid #8b0000; padding-right:16px;">&nbsp;</td>
+                  <td style="vertical-align:middle;">
 
-      <div style="font-size:12px; color:#555555; border-top:1px solid #eeeeee; padding-top:5px;">
-        <span style="color:#8b0000; font-weight:bold;">Horarios:</span>
-        Lun&ndash;Vie 9:00&nbsp;AM&ndash;5:00&nbsp;PM &nbsp;&middot;&nbsp;
-        S&aacute;b 8:00&nbsp;AM&ndash;1:00&nbsp;PM &nbsp;&middot;&nbsp;
-        Dom Cerrado
+                    <div style="font-size:18px; font-weight:bold; color:#8b0000; padding-bottom:6px; letter-spacing:0.3px;">
+                      Broncano Academia
+                    </div>
+
+                    <div style="padding-bottom:2px;">
+                      <span style="color:#8b0000; font-weight:bold;">&#9993;</span>&nbsp;
+                      <a href="mailto:broncanoacademia@gmail.com" style="color:#333333; text-decoration:none;">broncanoacademia@gmail.com</a>
+                      &nbsp;&nbsp;<span style="color:#cccccc;">|</span>&nbsp;&nbsp;
+                      <span style="color:#8b0000; font-weight:bold;">&#9742;</span>&nbsp;
+                      <a href="tel:+593968125046" style="color:#333333; text-decoration:none;">+593 968 125 046</a>
+                    </div>
+
+                    <div style="padding-bottom:2px;">
+                      <span style="color:#8b0000; font-weight:bold;">&#127760;</span>&nbsp;
+                      <a href="https://broncano.io/" style="color:#8b0000; text-decoration:none; font-weight:bold;">broncano.io</a>
+                    </div>
+
+                    <div style="padding-bottom:6px;">
+                      <span style="color:#8b0000; font-weight:bold;">&#128205;</span>&nbsp;
+                      <a href="https://maps.google.com/?q=Sector+El+Bosque,+Alonso+de+torres+y+C.J.+Edificio+Vista-Sol,+Planta+Baja,+oficina+2" style="color:#333333; text-decoration:none;">Sector El Bosque, Alonso de Torres y C.J. &mdash; Edificio Vista-Sol, Planta Baja, of. 2</a>
+                    </div>
+
+                    <div style="font-size:12px; color:#555555; border-top:1px solid #eeeeee; padding-top:5px;">
+                      <span style="color:#8b0000; font-weight:bold;">Horarios:</span>
+                      Lun&ndash;Vie 9:00&nbsp;AM&ndash;5:00&nbsp;PM &nbsp;&middot;&nbsp;
+                      S&aacute;b 8:00&nbsp;AM&ndash;1:00&nbsp;PM &nbsp;&middot;&nbsp;
+                      Dom Cerrado
+                    </div>
+
+                  </td>
+                </tr>
+              </tbody></table>
+            </td>
+          </tr>
+
+        </tbody>
+      </table>
+
+      <div style="width:600px; max-width:600px; padding-top:14px; font-family:Arial, Helvetica, sans-serif; font-size:11px; line-height:1.5; color:#9a9aa0; text-align:center;">
+        Mensaje autom&aacute;tico de {{sitefullname}}.
       </div>
 
     </td>
