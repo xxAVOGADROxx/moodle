@@ -171,9 +171,22 @@ say('   permisos asignados: ' . count($CAPS));
 // QUÉ roles puede otorgar este rol (tabla role_allow_assign). Sin esto,
 // enrol_manual_enrol_users falla con `wsusercannotassign` al intentar poner el
 // rol de estudiante. Se permite que broncanows asigne el rol student.
+//
+// Y hay que comprobar si YA está permitido antes de permitirlo: la función de
+// Moodle hace un INSERT a pelo, sin mirar, y la tabla tiene índice único. Así que
+// este script reventaba con «Error escribiendo a la base de datos» en cuanto se
+// ejecutaba por segunda vez — y un script de puesta a punto que no se puede
+// repetir no sirve para poner nada a punto.
 $studentroleid = (int) (getenv('MOODLE_STUDENT_ROLE_ID') ?: 5);
-core_role_set_assign_allowed($roleid, $studentroleid);
-say("   broncanows habilitado para asignar el rol student ({$studentroleid})");
+$yapuede = $DB->record_exists('role_allow_assign', [
+    'roleid' => $roleid,
+    'allowassign' => $studentroleid,
+]);
+if (!$yapuede) {
+    core_role_set_assign_allowed($roleid, $studentroleid);
+}
+say("   broncanows habilitado para asignar el rol student ({$studentroleid})"
+    . ($yapuede ? ' — ya lo estaba' : ''));
 
 // ── 4. Servicio externo ─────────────────────────────────────────────────────
 say('4. Servicio externo');
