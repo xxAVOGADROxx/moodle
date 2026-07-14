@@ -1,7 +1,7 @@
 <?php
 /**
- * Crea (o rehace) el CURSO DE PRUEBAS: una copia del curso real, oculta, con los
- * exámenes siempre abiertos.
+ * Crea (o rehace) el CURSO DE PRUEBAS: una copia del curso real con los exámenes
+ * siempre abiertos, a la que sólo se entra si alguien te matricula.
  *
  *   php local/broncano/cli/sandbox.php estado
  *   php local/broncano/cli/sandbox.php crear
@@ -17,11 +17,25 @@
  * Con una copia, el curso bueno no se toca NUNCA. Se ensaya aquí, con exámenes
  * permanentemente abiertos, y no hay nada que restaurar ni de qué acordarse.
  *
- * ── Por qué OCULTO ──────────────────────────────────────────────────────────
+ * ── Por qué VISIBLE (y por qué antes estaba oculto, que era un error) ───────
  *
- * Un curso de pruebas visible es un curso donde un alumno real puede entrar y
- * rendir el examen final sin haber dado la materia. Se crea invisible y así se
- * queda: al sandbox se entra matriculándose a propósito, no por descuido.
+ * Lo creé oculto, razonando que así ningún alumno entraría por descuido. El
+ * razonamiento era plausible y estaba mal, de dos maneras:
+ *
+ *   1. En un curso oculto NO SE PUEDE MATRICULAR a nadie por Web Service:
+ *      `enrol_manual_enrol_users` falla con `requireloginerror`. El puente creaba
+ *      la cuenta del alumno y la matrícula reventaba.
+ *   2. Y aunque se matriculara, un curso oculto NO LO VEN los alumnos. Sólo lo ven
+ *      profesores y administradores. En «Mis cursos» no aparece.
+ *
+ * O sea que ocultarlo no lo protegía: lo dejaba inservible justo para aquello que
+ * lo justifica, que es probar con un alumno de verdad.
+ *
+ * Lo que de verdad protege un curso no es la visibilidad, sino la MATRÍCULA. Aquí
+ * —igual que en el curso real— la autoinscripción y el acceso de invitados están
+ * desactivados: sólo hay matrícula manual. Así que un curso visible aparece en el
+ * catálogo y nada más; para entrar hay que estar matriculado, y matricular es un
+ * acto deliberado. El nombre («no es el curso real») hace el resto.
  *
  * ── Y en NocoDB ─────────────────────────────────────────────────────────────
  *
@@ -80,8 +94,15 @@ if ($accion === 'estado') {
             $cerrados++;
         }
     }
+    $abierto = $DB->record_exists_select('enrol',
+        "courseid = ? AND enrol IN ('self','guest') AND status = 0", [$sandbox->id]);
     say("Curso pruebas:  {$sandbox->id} · {$sandbox->fullname}");
-    say('                visible: ' . ($sandbox->visible ? '⚠️  SÍ (debería estar oculto)' : '✅ no'));
+    say('                visible: ' . ($sandbox->visible
+        ? '✅ sí (hace falta: oculto no se puede matricular ni ver)'
+        : '⚠️  NO — así no se puede matricular a nadie ni lo ve el alumno'));
+    say('                entrada: ' . ($abierto
+        ? '⚠️  AUTOINSCRIPCIÓN ABIERTA — cualquiera puede entrar'
+        : '✅ sólo matrícula manual'));
     say('                exámenes: ' . count($quizzes) . ' · ' .
         ($cerrados ? "⚠️  {$cerrados} con fecha (deberían estar todos abiertos)" : '✅ todos abiertos'));
     say('');
@@ -116,7 +137,7 @@ $res = \core_course_external::duplicate_course(
     NOMBRE_SANDBOX,
     CORTO_SANDBOX,
     $curso->category,
-    0,                          // invisible desde el primer segundo
+    1,                          // visible: si se oculta, ni se matricula ni se ve
     [
         ['name' => 'activities', 'value' => 1],
         ['name' => 'blocks', 'value' => 1],
@@ -132,9 +153,19 @@ $res = \core_course_external::duplicate_course(
 $nuevoid = (int) $res['id'];
 say("   ✅ curso {$nuevoid} creado");
 
-// El duplicado hereda `visible` de la petición, pero se fuerza por si acaso: es
-// la única cosa de este script que, si falla, tiene consecuencias reales.
-$DB->set_field('course', 'visible', 0, ['id' => $nuevoid]);
+// Lo que protege este curso no es estar oculto —eso sólo lo rompía—, sino que a
+// él no se pueda entrar sin que alguien te matricule a mano. Se comprueba, en vez
+// de darlo por hecho: si el curso original tuviera la autoinscripción abierta, la
+// copia la heredaría y cualquiera podría entrar a un curso con los exámenes
+// permanentemente abiertos.
+$DB->set_field('course', 'visible', 1, ['id' => $nuevoid]);
+$DB->set_field('course', 'visibleold', 1, ['id' => $nuevoid]);
+foreach ($DB->get_records('enrol', ['courseid' => $nuevoid], 'id', 'id, enrol, status') as $e) {
+    if (in_array($e->enrol, ['self', 'guest'], true) && (int) $e->status === 0) {
+        $DB->set_field('enrol', 'status', ENROL_INSTANCE_DISABLED, ['id' => $e->id]);
+        say("   🔒 desactivo la inscripción «{$e->enrol}»: aquí no entra nadie por su cuenta");
+    }
+}
 
 // ── Exámenes siempre abiertos ───────────────────────────────────────────────
 $quizzes = $DB->get_records('quiz', ['course' => $nuevoid], 'id', 'id, name');
