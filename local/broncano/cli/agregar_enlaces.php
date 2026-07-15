@@ -31,17 +31,43 @@ require_once($CFG->dirroot . '/lib/resourcelib.php');
 const CURSOS = [5, 7];
 
 // Los enlaces. La clave es la URL, que es lo que hace idempotente el script.
+// La descripción (intro) se REESCRIBE en cada ejecución, así que este mismo script
+// sirve para mejorar los textos sin duplicar recursos.
 const ENLACES = [
     [
         'nombre' => 'Protocolo de Seguridad Operacional',
         'url'    => 'https://broncano.io/bitacora/dashboard/#/nc/form/9fda6b16-1401-45eb-8b42-84d7d527ccb1',
-        'intro'  => 'Formulario para el reporte de sucesos de seguridad operacional (SMS). '
-                  . 'Ábrelo para registrar cualquier incidente, accidente o condición insegura.',
+        'intro'  =>
+            '<p><strong>¿Qué es?</strong> El formulario oficial para reportar cualquier suceso de '
+            . 'seguridad operacional (SMS): un incidente, un accidente, una casi-colisión o una '
+            . 'condición insegura que observes durante la operación.</p>'
+            . '<p><strong>¿Cuándo lo uso?</strong> Siempre que ocurra —o esté a punto de ocurrir— '
+            . 'algo que afecte la seguridad. Reportar no es delatar: es <em>Cultura Justa</em>. '
+            . 'El reporte sirve para que todos aprendamos, nunca para castigar.</p>'
+            . '<p>💡 Los eventos con daño, colisión o pérdida deben notificarse además a la DGAC '
+            . '(NSSP) dentro de las <strong>24 horas</strong>.</p>',
     ],
     [
         'nombre' => 'Encuesta a Estudiante',
         'url'    => 'https://broncano.io/bitacora/dashboard/#/nc/form/6bfa9fc6-263b-4f15-ab42-3a8f187c26ff',
-        'intro'  => 'Encuesta de satisfacción del curso. Tu opinión nos ayuda a mejorar la instrucción.',
+        'intro'  =>
+            '<p><strong>¿Qué es?</strong> Una breve encuesta de satisfacción sobre el curso. '
+            . 'Te toma menos de dos minutos.</p>'
+            . '<p><strong>¿Para qué?</strong> Tu opinión —qué te sirvió, qué mejorarías— nos ayuda '
+            . 'a mejorar la instrucción para las próximas promociones. Complétala al finalizar '
+            . 'el curso. ¡Gracias por volar con Broncano UAS!</p>',
+    ],
+    [
+        'nombre' => 'Cita para el Examen Presencial (DGAC)',
+        'url'    => 'https://www.sipa.aviacioncivil.gob.ec/',
+        'intro'  =>
+            '<p><strong>¿Qué es?</strong> El portal oficial de la Dirección General de Aviación '
+            . 'Civil (DGAC). Desde aquí agendas tu <strong>cita para rendir el examen presencial</strong> '
+            . 'ante la autoridad aeronáutica.</p>'
+            . '<p><strong>¿Cuándo?</strong> Una vez completada la formación del curso, reserva tu '
+            . 'cita en el sistema de la DGAC para presentar el examen oficial.</p>'
+            . '<p>⚠️ Es un sitio <strong>externo de la DGAC</strong>, ajeno a Broncano. Ten a mano '
+            . 'tus datos personales al momento de agendar.</p>',
     ],
 ];
 
@@ -65,15 +91,15 @@ if (!$moduloUrl) {
     morir('El módulo "url" no está instalado en esta Moodle.');
 }
 
-/** ¿Ya existe en el curso un recurso URL que apunte a esta dirección? */
-function ya_existe(int $courseid, string $url): bool {
+/** El recurso URL del curso que apunta a esta dirección, o null si no existe. */
+function buscar_url(int $courseid, string $url) {
     global $DB;
-    $sql = "SELECT u.id
+    $sql = "SELECT u.id, u.name, u.intro
               FROM {url} u
               JOIN {course_modules} cm ON cm.instance = u.id
               JOIN {modules} m ON m.id = cm.module AND m.name = 'url'
              WHERE u.course = :course AND u.externalurl = :url";
-    return $DB->record_exists_sql($sql, ['course' => $courseid, 'url' => $url]);
+    return $DB->get_record_sql($sql, ['course' => $courseid, 'url' => $url]) ?: null;
 }
 
 // ── estado ──────────────────────────────────────────────────────────────────
@@ -86,7 +112,9 @@ if ($accion === 'estado') {
         }
         say("── curso {$cid} · {$curso->shortname}");
         foreach (ENLACES as $e) {
-            say(sprintf('   %s %s', ya_existe($cid, $e['url']) ? '✅ ya está:' : '— falta:  ', $e['nombre']));
+            $r = buscar_url($cid, $e['url']);
+            $dice = $r ? ($r->intro === $e['intro'] ? '✅ está, descripción al día' : '✏️ está, actualizaré la descripción') : '— falta';
+            say(sprintf('   %-38s %s', $e['nombre'], $dice));
         }
     }
     exit(0);
@@ -99,6 +127,7 @@ if ($accion !== 'agregar') {
 
 // ── agregar ─────────────────────────────────────────────────────────────────
 $creados = 0;
+$actualizados = 0;
 foreach (CURSOS as $cid) {
     $curso = $DB->get_record('course', ['id' => $cid]);
     if (!$curso) {
@@ -108,10 +137,27 @@ foreach (CURSOS as $cid) {
     say("── curso {$cid} · {$curso->shortname}" . ($dry ? '   [SIMULACRO]' : ''));
 
     foreach (ENLACES as $e) {
-        if (ya_existe($cid, $e['url'])) {
-            say("   ✓ ya está: {$e['nombre']}");
+        // Ya existe → sólo se refresca la descripción si cambió. No se duplica.
+        $r = buscar_url($cid, $e['url']);
+        if ($r) {
+            if ($r->intro === $e['intro'] && $r->name === $e['nombre']) {
+                say("   ✓ ya está y al día: {$e['nombre']}");
+                continue;
+            }
+            say("   ✏️  actualizo la descripción: {$e['nombre']}");
+            if (!$dry) {
+                $DB->update_record('url', (object) [
+                    'id' => $r->id,
+                    'name' => $e['nombre'],
+                    'intro' => $e['intro'],
+                    'introformat' => FORMAT_HTML,
+                    'timemodified' => time(),
+                ]);
+            }
+            $actualizados++;
             continue;
         }
+
         say("   → añado: {$e['nombre']}");
         if ($dry) {
             $creados++;
@@ -151,8 +197,8 @@ foreach (CURSOS as $cid) {
 
 say('');
 if ($dry) {
-    say("[SIMULACRO] No he escrito nada. Se añadirían {$creados} recurso(s).");
+    say("[SIMULACRO] No he escrito nada. Se añadirían {$creados} y se actualizarían {$actualizados}.");
 } else {
-    say("✅ Listo. {$creados} enlace(s) añadido(s). Aparecen arriba en cada curso.");
+    say("✅ Listo. {$creados} enlace(s) añadido(s) y {$actualizados} descripción(es) actualizada(s).");
 }
 exit(0);
